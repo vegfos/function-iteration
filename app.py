@@ -57,67 +57,12 @@ def sidebar():
 
     return b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol
 
-b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol = sidebar()
-
-st.title('Function Iteration')
-
-value_function, wealth, policy = False, False, False
-
-if st.button('Run Function Iteration'):
-    value_function, wealth, policy = function_iteration(b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol)
-
-    data = pd.DataFrame({'Value Function' : value_function,
-            'Wealth' : wealth, 
-            'Policy' : policy}).replace(-np.inf, np.nan).dropna()
-
-if value_function:
-
-    value_function_chart = alt.Chart(data).mark_line().encode(
-            x='Wealth',
-            y='Value Function'
-            ).properties(
-                title='Value Function'
-        )
-
-    policy_chart = alt.Chart(data).mark_line().encode(
-            x='Wealth',
-            y='Policy'
-            ).properties(
-                title='Control Rule'
-            )
-
-    col1, col2 = st.beta_columns(2)
-        
-    with col1:
-        st.write(value_function_chart)
-        
-    with col2:
-        st.write(policy_chart)
-
-        ### SIMULATE TIME PATH
-
-    # TIME PATH WEALTH
+def simulate_time_path(years, w0, wealth, policy):
+    """ Runs a time a path simulation for a policy
+    """
     policy_path = []
     wealth_path = []
-    years = 100
-
-
-
-    st.subheader('Time Path Simulation')
-
-    col3, col4 = st.beta_columns(2)
-    with col3:
-        w0 = st.slider('Initial Wealth', 
-        min_value = 100,
-        max_value = 10000,
-            value = 1000)
-
-
-    with col4:
-        years = st.slider('Number of years',
-            min_value = 5,
-            max_value = 500,
-            value=100)
+    years = years 
 
     for i in range(years):
         policy_index = np.argmin(np.abs(np.subtract.outer(w0, wealth)))
@@ -131,24 +76,95 @@ if value_function:
             'Wealth': wealth_path,
             'Policy': policy_path
         })
+    
+    return simul_df
 
-    wealth_simulation_chart = alt.Chart(simul_df.reset_index()).mark_line().encode(
+def wealth_simulation_chart(df):
+    chart = alt.Chart(df.reset_index()).mark_line().encode(
             x='index',
             y='Wealth'
             ).properties(
                 title='Time Path Wealth'
             )
+    return chart
 
-    policy_simul_chart = alt.Chart(simul_df.reset_index()).mark_line().encode(
+def policy_simulation_chart(df):
+    chart = alt.Chart(df.reset_index()).mark_line().encode(
             x='index',
             y='Policy'
         ).properties(
             title='Time Path Consumption'
         )
-                
-    col5, col6 = st.beta_columns(2)
-    with col5:
-        st.write(wealth_simulation_chart)
 
-    with col6:
-        st.write(policy_simul_chart)
+    return chart
+
+@st.cache(suppress_st_warning=True)
+def run_function_iteration(b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol):
+    value_function, wealth, policy = function_iteration(b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol)
+
+    return value_function, wealth, policy
+
+run_button = st.sidebar.empty()
+value_function = None
+b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol = sidebar()
+
+st.title('Function Iteration')
+
+value_function, wealth, policy = run_function_iteration(b, r, u, w_low, w_high, n, c_low, c_high, m, maxit, tol)
+
+data = pd.DataFrame({'Value Function' : value_function,
+        'Wealth' : wealth, 
+        'Policy' : policy}).replace(-np.inf, np.nan).dropna()
+
+value_function_chart = alt.Chart(data).mark_line().encode(
+        x='Wealth',
+        y='Value Function'
+        ).properties(
+            title='Value Function'
+    )
+
+policy_chart = alt.Chart(data).mark_line().encode(
+        x='Wealth',
+        y='Policy'
+        ).properties(
+            title='Control Rule'
+        )
+
+col1, col2 = st.beta_columns(2)
+    
+with col1:
+    st.write(value_function_chart)
+    
+with col2:
+    st.write(policy_chart)
+
+st.subheader('Time Path Simulation')
+col3, col4 = st.beta_columns(2)
+with col3:
+    w0 = st.slider('Initial Wealth', 
+    min_value = 100,
+    max_value = 10000,
+        value = 1000)
+
+with col4:
+    years = st.slider('Number of years',
+        min_value = 5,
+        max_value = 500,
+        value=100)
+
+
+def simulation(years, w0, wealth, policy):
+    simul_df = simulate_time_path(years, w0, wealth, policy)
+
+    wealth_chart = wealth_simulation_chart(simul_df)
+    policy_chart = policy_simulation_chart(simul_df)
+
+    return wealth_chart, policy_chart
+
+wealth_chart, policy_chart = simulation(years, w0, wealth, policy)
+col5, col6 = st.beta_columns(2)
+with col5:
+    st.write(wealth_chart)
+
+with col6:
+    st.write(policy_chart)
